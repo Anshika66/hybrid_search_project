@@ -1,0 +1,761 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Enterprise Search Portal 3D</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body { 
+            font-family: 'Inter', sans-serif; 
+            background-color: #0b0f19; 
+            overflow-x: hidden;
+        }
+
+        #canvas-bg {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 0;
+        }
+
+        .content-wrapper {
+            position: relative;
+            z-index: 10;
+        }
+
+        .glass-panel { 
+            background: rgba(17, 24, 39, 0.6); 
+            backdrop-filter: blur(12px); 
+            border: 1px solid rgba(255,255,255,0.05);
+            perspective: 1000px;
+            transition: all 0.3s ease;
+            transform-style: preserve-3d;
+            animation: panelGlow 4s ease-in-out infinite;
+            position: relative;
+        }
+
+        @keyframes panelGlow {
+            0%, 100% {
+                box-shadow: 0 0 20px rgba(99, 102, 241, 0.1), inset 0 0 20px rgba(255, 255, 255, 0.02);
+            }
+            50% {
+                box-shadow: 0 0 40px rgba(99, 102, 241, 0.2), inset 0 0 30px rgba(255, 255, 255, 0.05);
+            }
+        }
+
+        .glass-panel:hover {
+            background: rgba(17, 24, 39, 0.85);
+            border-color: rgba(255,255,255,0.15);
+            transform: rotateX(5deg) rotateY(-5deg) translateZ(30px) scale(1.01);
+            box-shadow: 0 30px 80px rgba(0, 0, 0, 0.8), 0 0 60px rgba(99, 102, 241, 0.3), inset 0 1px 30px rgba(255, 255, 255, 0.1);
+        }
+
+        .result-card {
+            background: rgba(51, 65, 85, 0.5);
+            border: 1px solid rgba(148, 163, 184, 0.1);
+            perspective: 1000px;
+            transition: all 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+            transform-style: preserve-3d;
+            animation: slideInUp 0.6s ease-out forwards;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .result-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.1), transparent);
+            transition: left 0.5s;
+            z-index: 1;
+            pointer-events: none;
+        }
+
+        .result-card:hover::before {
+            left: 100%;
+        }
+
+        .result-card:hover {
+            background: rgba(51, 65, 85, 0.8);
+            border-color: rgba(148, 163, 184, 0.3);
+            transform: rotateY(8deg) rotateX(-3deg) translateZ(20px) scale(1.02);
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.7), inset 0 1px 20px rgba(255, 255, 255, 0.1), 0 0 30px rgba(99, 102, 241, 0.2);
+        }
+
+        .search-input-wrapper {
+            perspective: 1200px;
+            animation: fadeInDown 0.8s ease-out;
+        }
+
+        #search-query {
+            transition: all 0.3s ease;
+        }
+
+        #search-query:focus {
+            transform: translateZ(10px);
+            box-shadow: 0 0 30px rgba(99, 102, 241, 0.5), inset 0 1px 10px rgba(255, 255, 255, 0.05);
+        }
+
+        .title {
+            animation: fadeInDown 0.8s ease-out 0.1s both;
+            background: linear-gradient(90deg, #14b8a6 0%, #6366f1 50%, #a855f7 100%);
+            background-size: 200% auto;
+            animation: fadeInDown 0.8s ease-out 0.1s both, gradientShift 6s ease infinite;
+        }
+
+        @keyframes gradientShift {
+            0% {
+                background-position: 0% center;
+            }
+            50% {
+                background-position: 100% center;
+            }
+            100% {
+                background-position: 0% center;
+            }
+        }
+
+        .subtitle {
+            animation: fadeInDown 0.8s ease-out 0.2s both;
+        }
+        
+        button {
+            perspective: 1000px;
+            position: relative;
+            z-index: 1;
+        }
+        
+        button::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: linear-gradient(45deg, transparent, rgba(255,255,255,0.3), transparent);
+            border-radius: inherit;
+            opacity: 0;
+            transition: opacity 0.3s;
+            z-index: -1;
+        }
+        
+        button:hover::before {
+            opacity: 1;
+            animation: shine 0.6s ease-in-out;
+        }
+        
+        @keyframes shine {
+            0% {
+                transform: translateX(-100%);
+            }
+            100% {
+                transform: translateX(100%);
+            }
+        }
+
+        .grid-container {
+            animation: fadeInUp 0.8s ease-out 0.3s both;
+        }
+
+        .grid-container > div {
+            animation: slideInUp 0.6s ease-out forwards;
+        }
+
+        .grid-container > div:nth-child(1) {
+            animation-delay: 0.3s;
+        }
+
+        .grid-container > div:nth-child(2) {
+            animation-delay: 0.4s;
+        }
+
+        .grid-container > div:nth-child(3) {
+            animation-delay: 0.5s;
+        }
+
+        @keyframes fadeInDown {
+            from {
+                opacity: 0;
+                transform: translateY(-30px) translateZ(-50px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0) translateZ(0);
+            }
+        }
+
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(30px) translateZ(-50px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0) translateZ(0);
+            }
+        }
+
+        @keyframes slideInUp {
+            from {
+                opacity: 0;
+                transform: translateY(20px) rotateX(20deg);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0) rotateX(0);
+            }
+        }
+
+        .glow-effect {
+            position: absolute;
+            border-radius: 50%;
+            filter: blur(80px);
+            opacity: 0.1;
+            pointer-events: none;
+        }
+
+        .glow-indigo {
+            width: 300px;
+            height: 300px;
+            background: #6366f1;
+            top: 10%;
+            left: 10%;
+            animation: float 8s ease-in-out infinite, glowPulse 3s ease-in-out infinite;
+        }
+
+        .glow-purple {
+            width: 250px;
+            height: 250px;
+            background: #a855f7;
+            bottom: 20%;
+            right: 10%;
+            animation: float 10s ease-in-out infinite reverse, glowPulse 4s ease-in-out infinite 0.5s;
+        }
+
+        .glow-teal {
+            width: 280px;
+            height: 280px;
+            background: #14b8a6;
+            top: 50%;
+            right: 5%;
+            animation: float 12s ease-in-out infinite, glowPulse 3.5s ease-in-out infinite 1s;
+        }
+
+        @keyframes glowPulse {
+            0%, 100% {
+                filter: blur(80px) opacity(0.1);
+            }
+            50% {
+                filter: blur(60px) opacity(0.2);
+            }
+        }
+
+        @keyframes float {
+            0%, 100% {
+                transform: translateY(0px) translateX(0px);
+            }
+            50% {
+                transform: translateY(-30px) translateX(20px);
+            }
+        }
+
+        @keyframes orbitalPulse {
+            0%, 100% {
+                transform: scale(1) rotate(0deg);
+            }
+            25% {
+                transform: scale(1.1) rotate(90deg);
+            }
+            50% {
+                transform: scale(1) rotate(180deg);
+            }
+            75% {
+                transform: scale(1.1) rotate(270deg);
+            }
+        }
+
+        @keyframes morphShape {
+            0%, 100% {
+                border-radius: 20%;
+            }
+            25% {
+                border-radius: 50%;
+            }
+            50% {
+                border-radius: 30% 70% 70% 30%;
+            }
+            75% {
+                border-radius: 50%;
+            }
+        }
+
+        @keyframes shimmer {
+            0% {
+                background-position: -1000px 0;
+            }
+            100% {
+                background-position: 1000px 0;
+            }
+        }
+
+        @keyframes glow {
+            0%, 100% {
+                box-shadow: 0 0 5px rgba(99, 102, 241, 0.2), inset 0 0 5px rgba(99, 102, 241, 0.1);
+            }
+            50% {
+                box-shadow: 0 0 20px rgba(99, 102, 241, 0.4), inset 0 0 10px rgba(99, 102, 241, 0.2);
+            }
+        }
+
+        @keyframes wave {
+            0%, 100% {
+                transform: translateY(0px);
+            }
+            25% {
+                transform: translateY(-8px);
+            }
+            75% {
+                transform: translateY(8px);
+            }
+        }
+
+        .metric-badge {
+            transition: all 0.3s ease;
+            font-feature-settings: "tnum";
+        }
+
+        .result-card:hover .metric-badge {
+            transform: scale(1.1) rotateZ(2deg);
+        }
+
+        .tag {
+            transition: all 0.3s ease;
+        }
+
+        .result-card:hover .tag {
+            border-color: rgba(255, 255, 255, 0.2);
+            transform: translateY(-2px);
+        }
+    </style>
+</head>
+<body class="text-gray-100 min-h-screen pb-12">
+
+    <canvas id="canvas-bg"></canvas>
+
+    <div class="glow-effect glow-indigo"></div>
+    <div class="glow-effect glow-purple"></div>
+    <div class="glow-effect glow-teal"></div>
+
+    <div class="content-wrapper">
+        <div class="max-w-7xl mx-auto px-4 pt-12">
+            <div class="text-center mb-8">
+                <h1 class="title text-4xl font-extrabold tracking-tight bg-gradient-to-r from-teal-400 via-indigo-400 to-purple-500 bg-clip-text text-transparent">
+                    ⚡ Enterprise Hybrid Search Dashboard
+                </h1>
+                <p class="subtitle text-gray-400 mt-2 text-sm">Querying 2,173 records across decoupled BM25 and FAISS indices via Reciprocal Rank Fusion.</p>
+            </div>
+
+            <div class="max-w-2xl mx-auto mb-12 search-input-wrapper">
+                <div class="relative flex items-center">
+                    <input type="text" id="search-query" placeholder="Type a concept or tags (e.g., machine learning, banking)..." 
+                           class="w-full px-6 py-4 rounded-full bg-gray-900 border border-gray-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 text-white placeholder-gray-500 shadow-xl pr-16 transition-all">
+                    <button onclick="performSearch()" class="absolute right-3 bg-gradient-to-r from-indigo-500 to-purple-600 hover:from-indigo-600 hover:to-purple-700 text-white px-5 py-2 rounded-full font-medium text-sm transition-all shadow-md hover:shadow-lg hover:scale-105 active:scale-95">
+                        Search
+                    </button>
+                </div>
+            </div>
+
+            <div class="grid-container grid grid-cols-1 lg:grid-cols-3 gap-8">
+                
+                <div class="glass-panel rounded-2xl p-6 shadow-2xl border-t-4 border-emerald-500/50">
+                    <div class="flex items-center gap-2 mb-6 transform transition-transform hover:scale-105">
+                        <span class="p-2 bg-emerald-500/10 text-emerald-400 rounded-lg text-xl">🔍</span>
+                        <h2 class="text-lg font-bold text-emerald-400 tracking-wide uppercase text-sm">Keyword Track (BM25)</h2>
+                    </div>
+                    <div id="bm25-results" class="space-y-4"></div>
+                </div>
+
+                <div class="glass-panel rounded-2xl p-6 shadow-2xl border-t-4 border-indigo-500/50">
+                    <div class="flex items-center gap-2 mb-6 transform transition-transform hover:scale-105">
+                        <span class="p-2 bg-indigo-500/10 text-indigo-400 rounded-lg text-xl">🧠</span>
+                        <h2 class="text-lg font-bold text-indigo-400 tracking-wide uppercase text-sm">Concept Track (FAISS)</h2>
+                    </div>
+                    <div id="faiss-results" class="space-y-4"></div>
+                </div>
+
+                <div class="glass-panel rounded-2xl p-6 shadow-2xl bg-gradient-to-b from-gray-900/40 via-transparent to-transparent border-t-4 border-amber-500">
+                    <div class="flex items-center gap-2 mb-6 transform transition-transform hover:scale-105">
+                        <span class="p-2 bg-amber-500/10 text-amber-400 rounded-lg text-xl">🏆</span>
+                        <h2 class="text-lg font-bold text-amber-400 tracking-wide uppercase text-sm">Unified Rankings (RRF)</h2>
+                    </div>
+                    <div id="fused-results" class="space-y-4"></div>
+                </div>
+
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Initialize Three.js with advanced 3D animations
+        let renderer, scene, camera, particles = [], centerOrbs = [], trails = [];
+        let hasWebGL = false;
+        let time = 0;
+
+        function initThreeJS() {
+            try {
+                const canvas = document.getElementById('canvas-bg');
+                if (!canvas) {
+                    console.warn('Canvas not found, skipping 3D initialization');
+                    return false;
+                }
+
+                // Check WebGL support
+                const gl = canvas.getContext('webgl2') || canvas.getContext('webgl');
+                if (!gl) {
+                    console.warn('WebGL not supported, using CSS animations only');
+                    return false;
+                }
+
+                hasWebGL = true;
+
+                scene = new THREE.Scene();
+                camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+                renderer = new THREE.WebGLRenderer({ 
+                    canvas: canvas, 
+                    antialias: true, 
+                    alpha: true,
+                    powerPreference: 'high-performance'
+                });
+                
+                renderer.setSize(window.innerWidth, window.innerHeight);
+                renderer.setClearColor(0x0b0f19, 0);
+                renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+                camera.position.z = 50;
+
+                // === ADVANCED PARTICLE SYSTEM ===
+                const particleCount = 80;
+                
+                for (let i = 0; i < particleCount; i++) {
+                    const geometry = new THREE.IcosahedronGeometry(Math.random() * 0.4 + 0.1, 4);
+                    
+                    const hue = Math.random() * 0.3 + 0.5;
+                    const material = new THREE.MeshPhongMaterial({
+                        color: new THREE.Color().setHSL(hue, 0.8, 0.5),
+                        emissive: new THREE.Color().setHSL(hue, 0.8, 0.25),
+                        shininess: 100,
+                        wireframe: Math.random() > 0.7
+                    });
+                    
+                    const mesh = new THREE.Mesh(geometry, material);
+                    mesh.castShadow = true;
+                    mesh.receiveShadow = true;
+                    
+                    mesh.position.set(
+                        (Math.random() - 0.5) * 120,
+                        (Math.random() - 0.5) * 120,
+                        (Math.random() - 0.5) * 100 - 30
+                    );
+                    
+                    mesh.rotation.set(
+                        Math.random() * Math.PI,
+                        Math.random() * Math.PI,
+                        Math.random() * Math.PI
+                    );
+                    
+                    const orbitRadius = 15 + Math.random() * 25;
+                    const orbitSpeed = 0.0008 + Math.random() * 0.0015;
+                    
+                    particles.push({
+                        mesh: mesh,
+                        speedX: (Math.random() - 0.5) * 0.1,
+                        speedY: (Math.random() - 0.5) * 0.1,
+                        speedZ: (Math.random() - 0.5) * 0.05,
+                        rotSpeedX: (Math.random() - 0.5) * 0.01,
+                        rotSpeedY: (Math.random() - 0.5) * 0.01,
+                        rotSpeedZ: (Math.random() - 0.5) * 0.01,
+                        orbitRadius: orbitRadius,
+                        orbitSpeed: orbitSpeed,
+                        orbitPhase: Math.random() * Math.PI * 2,
+                        pulsePhase: Math.random() * Math.PI * 2,
+                        initialScale: mesh.scale.x
+                    });
+                    
+                    scene.add(mesh);
+                }
+
+                // === CENTER ORBITING SPHERES ===
+                for (let i = 0; i < 3; i++) {
+                    const geometry = new THREE.SphereGeometry(1.5 + i * 0.8, 32, 32);
+                    const colors = [0x6366f1, 0xa855f7, 0x14b8a6];
+                    const material = new THREE.MeshPhongMaterial({
+                        color: colors[i],
+                        emissive: new THREE.Color(colors[i]).multiplyScalar(0.4),
+                        shininess: 150,
+                        transparent: true,
+                        opacity: 0.6
+                    });
+                    
+                    const mesh = new THREE.Mesh(geometry, material);
+                    mesh.position.z = 0;
+                    
+                    centerOrbs.push({
+                        mesh: mesh,
+                        radius: 20 + i * 8,
+                        speed: 0.0005 + i * 0.0002,
+                        phase: (i * Math.PI * 2) / 3,
+                        rotationSpeed: 0.002 + i * 0.001
+                    });
+                    
+                    scene.add(mesh);
+                }
+
+                // === TRAIL LINES ===
+                for (let i = 0; i < 3; i++) {
+                    const geometry = new THREE.BufferGeometry();
+                    const positions = new Float32Array(300);
+                    geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+                    
+                    const colors = [0x6366f1, 0xa855f7, 0x14b8a6];
+                    const material = new THREE.LineBasicMaterial({
+                        color: colors[i],
+                        transparent: true,
+                        opacity: 0.3,
+                        linewidth: 2
+                    });
+                    
+                    const line = new THREE.Line(geometry, material);
+                    trails.push({
+                        line: line,
+                        positions: [],
+                        phase: (i * Math.PI * 2) / 3,
+                        speed: 0.0005 + i * 0.0002,
+                        radius: 20 + i * 8
+                    });
+                    
+                    scene.add(line);
+                }
+
+                // === LIGHTING SETUP ===
+                const ambientLight = new THREE.AmbientLight(0xffffff, 0.3);
+                scene.add(ambientLight);
+
+                const pointLights = [
+                    { color: 0x6366f1, pos: [40, 30, 40], intensity: 1 },
+                    { color: 0xa855f7, pos: [-40, -30, 40], intensity: 1 },
+                    { color: 0x14b8a6, pos: [0, 40, -30], intensity: 0.8 },
+                    { color: 0xff6b9d, pos: [-30, 40, 30], intensity: 0.6 }
+                ];
+
+                pointLights.forEach(light => {
+                    const plight = new THREE.PointLight(light.color, light.intensity, 300);
+                    plight.position.set(...light.pos);
+                    plight.castShadow = true;
+                    scene.add(plight);
+                });
+
+                return true;
+            } catch (error) {
+                console.error('Three.js initialization failed:', error);
+                return false;
+            }
+        }
+
+        // === MOUSE TRACKING ===
+        let mouseX = 0;
+        let mouseY = 0;
+        document.addEventListener('mousemove', (e) => {
+            mouseX = (e.clientX / window.innerWidth) * 2 - 1;
+            mouseY = -(e.clientY / window.innerHeight) * 2 + 1;
+        });
+
+        // === MAIN ANIMATION LOOP ===
+        function animate() {
+            requestAnimationFrame(animate);
+
+            if (!hasWebGL || !renderer) return;
+
+            try {
+                time += 0.016; // ~60fps
+
+                // === PARTICLE ANIMATION ===
+                particles.forEach((p) => {
+                    // Orbital motion
+                    p.orbitPhase += p.orbitSpeed;
+                    const orbitalX = Math.cos(p.orbitPhase) * p.orbitRadius;
+                    const orbitalY = Math.sin(p.orbitPhase * 0.7) * p.orbitRadius * 0.5;
+                    
+                    // Free movement
+                    p.mesh.position.x += p.speedX;
+                    p.mesh.position.y += p.speedY;
+                    p.mesh.position.z += p.speedZ;
+
+                    // Apply orbital influence
+                    p.mesh.position.x += orbitalX * 0.0001;
+                    p.mesh.position.y += orbitalY * 0.0001;
+
+                    // Rotation
+                    p.mesh.rotation.x += p.rotSpeedX;
+                    p.mesh.rotation.y += p.rotSpeedY;
+                    p.mesh.rotation.z += p.rotSpeedZ;
+
+                    // Pulsing scale
+                    p.pulsePhase += 0.02;
+                    p.mesh.scale.set(
+                        p.initialScale * (0.8 + Math.sin(p.pulsePhase) * 0.2),
+                        p.initialScale * (0.8 + Math.sin(p.pulsePhase) * 0.2),
+                        p.initialScale * (0.8 + Math.sin(p.pulsePhase) * 0.2)
+                    );
+
+                    // Boundary wrapping
+                    if (Math.abs(p.mesh.position.x) > 80) p.speedX *= -1;
+                    if (Math.abs(p.mesh.position.y) > 80) p.speedY *= -1;
+                    if (Math.abs(p.mesh.position.z) > 80) p.speedZ *= -1;
+                });
+
+                // === CENTER ORB ANIMATION ===
+                centerOrbs.forEach((orb) => {
+                    orb.phase += orb.speed;
+                    orb.mesh.position.x = Math.cos(orb.phase) * orb.radius;
+                    orb.mesh.position.y = Math.sin(orb.phase * 0.6) * orb.radius * 0.5;
+                    orb.mesh.position.z = Math.sin(orb.phase * 0.3) * orb.radius * 0.3;
+                    
+                    orb.mesh.rotation.x += orb.rotationSpeed;
+                    orb.mesh.rotation.y += orb.rotationSpeed * 1.3;
+                    orb.mesh.rotation.z += orb.rotationSpeed * 0.7;
+
+                    // Scale pulse
+                    orb.mesh.scale.set(
+                        1 + Math.sin(time * 2 + orb.phase) * 0.2,
+                        1 + Math.sin(time * 2 + orb.phase) * 0.2,
+                        1 + Math.sin(time * 2 + orb.phase) * 0.2
+                    );
+                });
+
+                // === TRAIL ANIMATION ===
+                trails.forEach((trail, idx) => {
+                    trail.phase += trail.speed;
+                    const x = Math.cos(trail.phase) * trail.radius;
+                    const y = Math.sin(trail.phase * 0.6) * trail.radius * 0.5;
+                    const z = Math.sin(trail.phase * 0.3) * trail.radius * 0.3;
+
+                    trail.positions.unshift(x, y, z);
+                    if (trail.positions.length > 300) {
+                        trail.positions.pop();
+                        trail.positions.pop();
+                        trail.positions.pop();
+                    }
+
+                    const geometry = trail.line.geometry;
+                    const positions = new Float32Array(trail.positions);
+                    geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+                    geometry.attributes.position.needsUpdate = true;
+                });
+
+                // === ADVANCED CAMERA ===
+                const targetX = mouseX * 8 + Math.sin(time * 0.3) * 3;
+                const targetY = mouseY * 8 + Math.cos(time * 0.25) * 3;
+                
+                camera.position.x += (targetX - camera.position.x) * 0.06;
+                camera.position.y += (targetY - camera.position.y) * 0.06;
+                camera.position.z = 50 + Math.sin(time * 0.2) * 5;
+                camera.lookAt(0, 0, 0);
+
+                renderer.render(scene, camera);
+            } catch (error) {
+                console.error('Animation error:', error);
+            }
+        }
+
+        // === WINDOW RESIZE ===
+        window.addEventListener('resize', () => {
+            if (renderer && camera) {
+                camera.aspect = window.innerWidth / window.innerHeight;
+                camera.updateProjectionMatrix();
+                renderer.setSize(window.innerWidth, window.innerHeight);
+            }
+        });
+
+        // === START ANIMATION ===
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', () => {
+                if (initThreeJS()) {
+                    animate();
+                }
+            });
+        } else {
+            if (initThreeJS()) {
+                animate();
+            }
+        }
+
+        // Search functionality
+        function createCard(title, description, tags, metricText, metricColor) {
+            const tagBadges = tags.split(',').slice(0, 3).map(t => 
+                `<span class="tag text-[10px] bg-gray-800 text-gray-400 px-2.5 py-1 rounded-md font-medium border border-gray-700/50 uppercase tracking-tight transition-all">${t.trim()}</span>`
+            ).join(' ');
+
+            return `
+                <div class="result-card p-5 rounded-xl hover:cursor-pointer flex flex-col justify-between min-h-[180px]">
+                    <div>
+                        <div class="flex justify-between items-start gap-2 mb-3">
+                            <span class="text-xs font-bold text-gray-400 tracking-wider">${title}</span>
+                            <span class="metric-badge text-xs font-mono font-bold ${metricColor} bg-gray-900 px-2 py-0.5 rounded border border-gray-800">${metricText}</span>
+                        </div>
+                        <p class="text-gray-300 text-xs leading-relaxed line-clamp-4 mb-4 font-light">${description}</p>
+                    </div>
+                    <div class="flex flex-wrap gap-1.5 pt-2 border-t border-gray-800/50">${tagBadges}</div>
+                </div>`;
+        }
+
+        async function performSearch() {
+            const query = document.getElementById('search-query').value;
+            if (!query.trim()) return;
+
+            ['bm25-results', 'faiss-results', 'fused-results'].forEach(id => {
+                document.getElementById(id).innerHTML = '<p class="text-gray-500 text-center py-8 text-xs animate-pulse">Running retrieval tensors...</p>';
+            });
+
+            try {
+                const response = await fetch(`/api/search?q=${encodeURIComponent(query)}`);
+                const data = await response.json();
+
+                if (data.error) throw new Error(data.error);
+
+                document.getElementById('bm25-results').innerHTML = data.bm25.map(item => 
+                    createCard(`DOC ID: ${item.document_id}`, item.description, item.tags, `Score: ${item.score.toFixed(2)}`, 'text-emerald-400')
+                ).join('');
+
+                document.getElementById('faiss-results').innerHTML = data.faiss.map(item => 
+                    createCard(`DOC ID: ${item.document_id}`, item.description, item.tags, `Dist: ${item.distance.toFixed(4)}`, 'text-indigo-400')
+                ).join('');
+
+                document.getElementById('fused-results').innerHTML = data.fused.map(item => 
+                    createCard(`RANK #${item.rank} | DOC: ${item.document_id}`, item.description, item.tags, `RRF: ${item.rrf_score.toFixed(4)}`, 'text-amber-400')
+                ).join('');
+
+            } catch (err) {
+                console.error(err);
+                alert("Failed to fetch search rankings.");
+            }
+        }
+
+        document.getElementById('search-query').addEventListener('keypress', function (e) {
+            if (e.key === 'Enter') performSearch();
+        });
+    </script>
+</body>
+</html>
