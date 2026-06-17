@@ -17,5 +17,5 @@ FAISS_INDEX_PATH = INDEX_DIR / "vector_index.faiss"
 DOCUMENTS_PATH = INDEX_DIR / "documents.pkl"
 
 # embedding model 
-MODEL_NAME = "all-MiniLM-L6-v2"   
+MODEL_NAME = "paraphrase-MiniLM-L3-v2"   
 
