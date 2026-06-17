@@ -12,6 +12,9 @@ from utils.config import (
 
 
 class FAISSRetriever:
+    """
+    FAISS-based Semantic Retriever
+    """
 
     def __init__(self):
 
@@ -19,47 +22,82 @@ class FAISSRetriever:
         print("INITIALIZING FAISS RETRIEVER")
         print("=" * 60)
 
-        print("Loading FAISS Index...")
+        # -----------------------------
+        # Load FAISS Index
+        # -----------------------------
+        print("Loading FAISS index...")
+
         self.index = faiss.read_index(str(FAISS_INDEX_PATH))
-        print("FAISS Index Loaded.")
 
-        print("Loading Documents...")
-        with open(DOCUMENTS_PATH, "rb") as f:
-            self.documents = pickle.load(f)
-        print(f"{len(self.documents)} documents loaded.")
+        print("FAISS index loaded successfully.")
 
-        # Lazy loading
-        self.model = None
+        # -----------------------------
+        # Load Documents
+        # -----------------------------
+        print("Loading documents...")
 
-        print("Sentence Transformer will load on first search.")
+        with open(DOCUMENTS_PATH, "rb") as file:
+            self.documents = pickle.load(file)
+
+        print(f"Loaded {len(self.documents)} documents.")
+
+        # -----------------------------
+        # Load Embedding Model
+        # -----------------------------
+        print("Loading Sentence Transformer...")
+
+        self.model = SentenceTransformer(MODEL_NAME)
+
+        print("Sentence Transformer loaded.")
 
         print("=" * 60)
         print("Retriever Ready")
         print("=" * 60)
 
-    def load_model(self):
-
-        if self.model is None:
-            print("\nLoading Sentence Transformer...")
-            self.model = SentenceTransformer(MODEL_NAME)
-            print("Sentence Transformer Loaded.")
-
     def search(self, query, top_k=5):
 
-        self.load_model()
+        print("\n----------------------------")
+        print("Starting Semantic Search")
+        print("----------------------------")
+
+        print("User Query :", query)
+
+        # -----------------------------
+        # Generate Query Embedding
+        # -----------------------------
+        print("\nStep 1 : Encoding Query...")
 
         query_embedding = self.model.encode(
             [query],
             convert_to_numpy=True,
             show_progress_bar=False
-        ).astype(np.float32)
-
-        distances, indices = self.index.search(
-            query_embedding,
-            top_k
         )
 
+        print("Embedding generated.")
+
+        query_embedding = query_embedding.astype(np.float32)
+
+        print("Embedding Shape :", query_embedding.shape)
+        print("Embedding Type  :", query_embedding.dtype)
+
+        # -----------------------------
+        # FAISS Search
+        # -----------------------------
+        print("\nStep 2 : Searching FAISS Index...")
+
+        distances, indices = self.index.search(query_embedding, top_k)
+
+        print("FAISS Search Completed")
+
+        print("Distances :", distances)
+        print("Indices   :", indices)
+
+        # -----------------------------
+        # Prepare Results
+        # -----------------------------
         results = []
+
+        print("\nStep 3 : Preparing Results...")
 
         for rank, (doc_id, distance) in enumerate(
             zip(indices[0], distances[0]),
@@ -71,7 +109,7 @@ class FAISSRetriever:
 
             results.append(
                 {
-                    "rank": int(rank),
+                    "rank": rank,
                     "document_id": int(doc_id),
                     "distance": float(distance),
                     "description": self.documents[doc_id]["description"],
@@ -79,4 +117,9 @@ class FAISSRetriever:
                 }
             )
 
+        print(f"{len(results)} documents returned.")
+
         return results
+    
+
+
