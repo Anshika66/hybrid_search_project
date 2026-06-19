@@ -205,7 +205,7 @@ Response
 
 ```json
 {
-    "message":"Hybrid Search Engine API is Running!"
+    "message":"Hybrid Search Engine API is Running!"
 }
 ```
 
@@ -227,13 +227,11 @@ Example Response
 
 ```json
 [
-  {
-    "rank":1,
-    "document_id":1457,
-    "rrf_score":0.0325,
-    "description":"Irish markets reach all-time high...",
-    "tags":"business, economy, finance"
-  }
+    "rank":1,
+    "document_id":1457,
+    "rrf_score":0.0325,
+    "description":"Irish markets reach all-time high...",
+    "tags":"business, economy, finance"
 ]
 ```
 
